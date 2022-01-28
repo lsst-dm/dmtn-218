@@ -1,0 +1,9 @@
+% bibentry template for lsst.bib in https://github.com/lsst/lsst-texmf/blob/main/texmf/bibtex/bib/lsst.bib
+
+@DocuShare{DMTN-218,
+   author = { Kian-Tat Lim },
+    title = {The LSST Science Pipelines Build System},
+     year = 2022,
+    month = Jan,
+   handle = {DMTN-218},
+      url = {https://dmtn-218.lsst.io } }
