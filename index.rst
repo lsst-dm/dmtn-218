@@ -114,6 +114,18 @@ conda-forge
 The third-party dependencies (Python and C++) of the Science Pipelines are, to the extent possible, installed in a conda environment via the rubin-env metapackage from the conda-forge channel.
 conda-forge is used because it has strong policies around maintaining consistency and interoperability of the packages it publishes.
 
+CernVM-FS
+---------
+
+CernVM-FS is a globally-distributed, locally-cached read-only shared POSIX filesystem.
+CC-IN2P3 takes tagged weekly and official release source packages in the eups distribution server and rebuilds them into a binary "stack" installation in CernVM-FS, including a base rubin-env conda environment and an extended one with additional convenience packages.
+Singularity container images are also produced and stored in this system.
+Other artifacts could be similarly published.
+
+As a shared filesystem, it is easy to ensure that developer systems and batch poroduction worker systems share the same view of the software to be executed.
+This makes CernVM-FS an attractive software distribution mechanism for user-level applications that do not need the OS-level package and isolation that containers provide.
+Note that while it is not a container registry per se, as mentioned, container images can still be usefully disseminated via CernVM-FS.
+
 ci-scripts
 ----------
 
