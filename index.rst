@@ -67,8 +67,9 @@ eups.lsst.codes
 
 The primary publication location for the eups distribution server is a Simple Storage Service (S3) bucket at AWS.
 Publication occurs in certain pipelines via the "aws s3 cp" command using credentials stored in the "aws-cmirror-push" Jenkins secret.
-The data in that bucket is replicated via an unknown process to a Persistent Disk filesystem attached to nodes in Google Kubernetes Engine (GKE) at Google Cloud Platform (GCP).
-The GKE nodes serve this data as https://eups.lsst.codes.
+The data in that bucket is replicated via code in https://github.com/lsst-sqre/terraform-scipipe-publish/tree/master/s3sync to a Persistent Disk filesystem attached to a deployment in Google Kubernetes Engine (GKE) at Google Cloud Platform (GCP).
+The GKE deployment runs a vanilla Apache container as specified in https://github.com/lsst-sqre/terraform-scipipe-publish/blob/master/tf/modules/pkgroot/pkgroot-deploy.tf along with an nginx ingress in order to support HTTPS.
+The result is https://eups.lsst.codes.
 
 hub.docker.com
 --------------
