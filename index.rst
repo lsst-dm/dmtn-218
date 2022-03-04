@@ -127,21 +127,77 @@ As a shared filesystem, it is easy to ensure that developer systems and batch po
 This makes CernVM-FS an attractive software distribution mechanism for user-level applications that do not need the OS-level package and isolation that containers provide.
 Note that while it is not a container registry per se, as mentioned, container images can still be usefully disseminated via CernVM-FS.
 
-ci-scripts
-----------
+lsst-sqre/ci-scripts
+--------------------
 
-lsstsw
-------
+This repo contains four scripts:
+
+* ``create_xlinkdocs.sh`` runs the doxygen build for the entire stack, resulting in doxygen.lsst.codes.
+  It is invoked by ``lsstswBuild.sh``.
+* ``jenkins_wrapper.sh`` translates from Jenkins-specified environment variables to script arguments for ``lsstswBuild.sh``.
+  It executes ``deploy`` from ``lsstsw`` to prepare the build tree and environment.
+* ``lsstswBuild.sh`` invokes ``envconfig`` from ``lsstsw`` to initialize the conda environment and then invokes ``rebuild`` to actually perform the build.
+  If successful, it runs the doxygen build using ``create_xlinkdocs.sh``.
+* ``run_verify_drp_metrics.sh`` sets up the code in ``faro`` and a dataset and then runs a dataset-dependent script to generate metrics by analyzing the results of running pipeline algorithms on that dataset.
+  This is triggered by the "verify_drp_metrics" post-release job in Jenkins.
+
+lsst/lsstsw
+-----------
+
+This repo contains code that was originally intended to handle the process of publishing source and binary tarball packages to the eups distribution server.
+It has since expanded to be a more general-purpose multi-package build tool for the Science Pipelines.
+Information on it is available in https://developer.lsst.io/stack/lsstsw.html
+
+The primary scripts here are:
+
+* ``deploy``, which installs needed code including conda, the rubin-env environment, and the ``lsst_build`` tool.
+* ``rebuild``, which uses ``lsst_build`` to prepare eups package sources and then build them.
+* ``publish``, which takes an existing eups installation and creates distribution server packages, tag files, and environment listings in a separate directory.
+  This "distribution server" directory is ready to be mirrored to the real Web-hosted distribution server.
+
+Some configuration information for the scripts is contained in ``etc/settings.cfg.sh``.
+The ``etc/manifest.remap`` file must contain the names of all packages that use Git LFS, as they cannot be packaged normally by eups.
+``etc/exclusions.txt`` is likely vestigial.
+
+The ``lsst/versiondb`` repo is used to maintain records of the versions of packages that have had builds attempted.
+See the README file in ``lsst/lsst_build`` for more information.
+
+lsst/lsst_build
+---------------
+
+This repo is used by ``lsst/lsstsw``.
+It contains Python code to rapidly clone all of the packages needed to build a Science Pipelines product, given the git repository configuration in ``lsst/repos``, check out appropriate git refs in each clone, and then invoke ``eupspkg`` to build them if needed.
 
 lsst/lsst
 ---------
 
+This repo contains the ``newinstall.sh`` and ``lsstinstall`` scripts that create the appropriate environment for using ``eups distrib`` to install Science Pipelines packages, either from source or from binary tarballs.
+They install conda, the rubin-env environment, and configure an eups "stack" location, and they create a script that can be sourced to activate this environment in a shell.
+
 eups, eupspkg, and eups distrib
 -------------------------------
+
+eups is the package manager used by the Science Pipelines.
+It enables flexible combinations of versions of packages, including under-development versions.
+Some information about it is available at https://developer.lsst.io/stack/eups-tutorial.html
+
+eupspkg is the tool within eups that builds source and binary packages.
+It has extensive documentation in a docstring within https://github.com/RobertLuptonTheGood/eups/blob/master/python/eups/distrib/eupspkg.py
+Note that there are two kinds of source packages: "git" and "package".
+"git" packages merely refer to a particular repo and so use much less space on the distribution server but somewhat more space on the installing client.
+"package" packages include a complete copy of the source code, so they use much more space on the distribution server but less space on the client.
+
+eups distrib is an independent module within eups that handles interactions with a distribution server that provides source and/or binary packages.
+There are several types, but we currently use only the eupspkg variety, as specified in https://eups.lsst.codes/stack/src/config.txt
+Note that the binary tarball servers also have similar configuration files, such as https://eups.lsst.codes/stack/osx/10.9/conda-system/miniconda3-py38_4.9.2-2.0.0/config.txt
 
 sconsUtils
 ----------
 
+sconsUtils is the library of code used with the scons build tool that customizes it for Science Pipelines use.
+It standardizes handling of C++ and Python code as well as documentation, tests, and eups packaging information.
+In addition to package dependencies from eups table files, it also uses special ``ups/*.cfg`` files to track dependency information, particularly for C++.
+(However dependency information for C++-accessible shared libraries in the rubin-env conda environment is obtained from ``sconsUtils/configs``, not from ``ups`` directories.)
 
 Docker Containers
 =================
