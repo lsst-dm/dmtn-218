@@ -4,12 +4,6 @@
 
 .. sectnum::
 
-.. TODO: Delete the note below before merging new content to the main branch.
-
-.. note::
-
-   **This technote is not yet published.**
-
 Introduction
 ============
 
@@ -20,23 +14,23 @@ This document describes the current state of the system, exposing some of its co
 Functions
 =========
 
-The build system is responsible for several functions, each of which is represented by a pipeline within Jenkins:
+The build system is responsible for several functions, each of which is represented by a pipeline within the Jenkins system:
 
  * Manually-triggered integration testing ("stack-os-matrix")
  * Nightly and weekly automated releases ("nightly-release" and "weekly-release")
  * Nightly "clean build" tests, some with extended testing ("ci_hsc", "ci_imsim", and "lsst_distrib")
  * Release candidate and official release builds ("official-release")
 
-The release processes, whether nightly, weekly, or official, also have multiple functions:
+The release processes, whether nightly, weekly, or official, have multiple subsidiary tasks, some of which are Jenkins pipelines and some of which are individual pipeline stages:
 
  * Build the software, ensuring it passes its unit tests.
- * Run limited integration tests (by building and testing the "lsst_ci" product)
+ * Run limited integration tests (by building and testing the "lsst_ci" product, which in turn includes the "pipelines_check" product).
  * Tag the GitHub repositories that make up the software to indicate the release content.
  * Publish source packages, an environment file, and a tag file to the eups.lsst.codes distribution server allowing others to use "eups distrib install" to install the release.
  * Generate and publish tarball binary packages for Linux and macOS to the eups.lsst.codes distribution server to speed up installations.
- * Generate and publish a Docker container containing the software to hub.docker.com (and potentially other container/artifact registries).
+ * Generate and publish a Docker container containing the software to hub.docker.com and Google Artifact Registry (and potentially other registries).
  * Execute characterization jobs that generate metrics about the quality of the Alert Production and Data Release Production components of the release that are pushed to the SQuaSH system ("ap_verify" and "verify_drp_metrics").
- * Trigger, via a GitHub Action, building and publication of the JupyterLab image for the Rubin Science Platform Notebook Aspect.
+ * Trigger, via a GitHub Action, building and publication of the JupyterLab container image for the Rubin Science Platform Notebook Aspect.
 
 In addition, there is a separate system that maintains the "shared stack" installation of the Science Pipelines on the developer systems at NCSA.
 
@@ -75,8 +69,8 @@ hub.docker.com
 --------------
 
 The primary publication location for Docker containers is DockerHub at hub.docker.com.
-Secondary publication to Google Artifact Registry at GCP is in development.
-Several containers are published to DockerHub using credentials stored in the "dockerhub-sqreadmin" Jenkins secret.
+Containers are published using credentials stored in the "dockerhub-sqreadmin" Jenkins secret.
+The same containers are published to Google Artifact Registry at GCP using credentials stored in the "google_archive_registry_sa" Jenkins secret.
 
 GitHub
 ------
@@ -99,7 +93,7 @@ Credentials for this are in the "ltd-mason-aws" and "ltd-keeper" Jenkins secrets
 Slack
 -----
 
-Most pipelines publish notifications of start, success, and failure to Slack channels.
+Most pipelines publish notifications of start, success, and failure to Slack channels using a custom Groovy library that uses the Slack API.
 Credentials for this are in the "ghslacker" Jenkins secret.
 
 SQuaSH
@@ -114,6 +108,8 @@ conda-forge
 
 The third-party dependencies (Python and C++) of the Science Pipelines are, to the extent possible, installed in a conda environment via the rubin-env metapackage from the conda-forge channel.
 conda-forge is used because it has strong policies around maintaining consistency and interoperability of the packages it publishes.
+
+Matthew Becker takes weekly and official releases of the Science Pipelines and builds them into a single conda-forge package called "stackvana".
 
 CernVM-FS
 ---------
@@ -249,6 +245,8 @@ The "seeds" pipeline installs all of the "job" components in the Jenkins configu
 It must be rerun any time a "job" component is modified.
 It does not need to be rerun when a "pipeline" component is modified, as those are dynamically loaded from the "main" branch of lsst-dm/jenkins-dm-jobs as each pipeline begins execution.
 
+Typically the seeds pipeline is automatically triggered by updates to the lsst-dm/jenkins-dm-jobs repo.
+
 Science Pipelines builds
 ------------------------
 
@@ -310,7 +308,7 @@ If the "FORCE_CLEANUP" parameter is specified, all workers' workspaces will be c
 If the "FORCE_NODE" parameter is specified and "FORCE_CLEANUP" is not, only that node will be cleaned if it does not have an active job.
 
 sqre/infra/clean-locks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Manually triggered when an interrupted build leaves eups lock files behind.
 In most cases nowadays, eups locking should be disabled, meaning that this job should be unnecessary.
@@ -318,20 +316,20 @@ In most cases nowadays, eups locking should be disabled, meaning that this job s
 Release builds
 --------------
 
-Also publish doxygen output to doxygen.lsst.codes.
+These builds also publish doxygen output to doxygen.lsst.codes.
 
 release/nightly-release
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Nightly build (d_YYYY_MM_DD)
 
 release/weekly-release
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Weekly build (w_YYYY_WW)
 
 release/official-release
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Official release build (vNN)
 
@@ -339,22 +337,31 @@ Release build components
 ------------------------
 
 release/run-rebuild
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Runs a complete build, unit tests, and default integration tests on the canonical platform (Linux).
+The build occurs in a directory that is reused from run to run.
+This means that the rubin-env environment is typically not identical to what would be newly installed.
 
 release/run-publish
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Publishes source packages, the release tag, and an environment file to the eups distribution server.
+The version number of the rubin-env environment is recorded.
+This environment file records the packages in rubin-env and any explicit constraints on them, but it does not give exact versions, as it is OS-independent and the exact packages are OS-dependent.
 
 release/tarball
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 Builds binary tarballs from the source packages, copies them into a local "distribution server" directory, tests that binary installs work correctly, including running a minimal check, and publishes the distribution server directory to the cloud distribution server.
+The exact packages used for this build are recorded in an environment file on the eups distribution server.
+Note that these packages may differ from those used in the run-rebuild pipeline above, as newinstall.sh is used to create the environment each time.
+
+Also note that both the "stack" directory in which the packages are installed and the "distribution server" directory are reused, so previously-built packages do not need to be rebuilt.
+
 
 docker/build-stack
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 
 Builds the Science Pipelines Linux container from the binary tarballs, editing the result as described earlier.
 
@@ -363,28 +370,19 @@ Triggered post-release jobs
 ---------------------------
 
 sqre/infra/documenteer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Builds and publishes an edition of the pipelines.lsst.io website based on the centos Science Pipelines container.
 
 scipipe/ap_verify
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
 
 Runs ap_verify code from the centos Science Pipelines container on test datasets, publishing metrics to SQuaSH.
 
 sqre/verify_drp_metrics
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Runs faro code from the centos Science Pipelines container on test datasets, publishing metrics to SQuaSH.
-
-Qserv builds
-------------
-
-These three pipelines will very soon be obsolete; they were used to build the Qserv distributed database software package.
-
- * dax/qserv_distrib
- * dax/release/rebuild_publish_qserv-dev
- * dax/docker/build-dev
 
 .. .. rubric:: References
 
