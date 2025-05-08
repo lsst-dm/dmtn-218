@@ -38,23 +38,20 @@ In addition, there is a separate system that maintains the "shared stack" instal
 Components
 ==========
 
-Jenkins (ci.lsst.codes)
+Jenkins (rubin-ci.slac.stanford.edu)
 -----------------------
 
-Control (the "jenkins-master" node) is hosted in the Elastic Computing Cloud (EC2) in Amazon Web Services (AWS); this serves the Jenkins UI at https://ci.lsst.codes.
+Control (the "jenkins-master" node) is hosted in a SLAC and Google Cloud Platform; this serves the Jenkins UI at https://rubin-ci.slac.stanford.edu.
 
-Workers are "agent-ldfc" pods running on the NCSA k8s-devel Kubernetes (K8s) cluster.
+Workers are "agent-ldfc" pods running on the GKE Kubernetes (K8s) cluster.
 They make up a StatefulSet called "agent-ldfc".
 (These pods may have been configured using Terraform somewhere but almost certainly have had many manual changes not reflected in the original Terraform.)
-Each pod is composed of a docker-in-docker container (https://github.com/lsst-sqre/docker-dind/), a docker-gc container that cleans up old docker containers and images (https://github.com/lsst-sqre/docker-docker-gc), and the main swarm container (https://github.com/lsst-sqre/docker-jenkins-swarm-client) that actually communicates with the Jenkins central control and executes pipelines.
-The pods use disk space at /project/jenkins/prod, with each subdirectory allocated as a separate PV in K8s.
-This space is located on GPFS at NCSA, but it is mounted via NFS from lsst-nfs.ncsa.illinois.edu in order to protect the filesystem from potential problems caused by the use of root in the Jenkins containers.
+Each pod is composed of a docker-in-docker container (https://github.com/lsst-dm/docker-dind/), a docker-gc container that cleans up old docker containers and images (https://github.com/lsst-dm/docker-docker-gc), and the main swarm container (https://github.com/lsst-dm/docker-jenkins-swarm-client) that actually communicates with the Jenkins central control and executes pipelines.
 
-Workers are also installed on macOS machines located in the Tucson AURA headquarters machine room.
-These machines are named mac1-6.lsst.cloud.
+Workers are also installed on macOS machines located in the Chile AURA headquarters machine room.
 The Jenkins UI is used to start and configure workers on these machines, launching agents via ssh to the "square" account using credentials stored in the "sqre-osx" Jenkins secret.
 
-There is a final "snowflake" worker used for release builds that also runs in EC2.
+There is a final "snowflake" worker used for release builds that also runs in GKE.
 
 eups.lsst.codes
 ---------------
@@ -68,11 +65,11 @@ The data in that bucket is replicated via code in https://github.com/lsst-sqre/t
 The GKE deployment runs a vanilla Apache container as specified in https://github.com/lsst-sqre/terraform-scipipe-publish/blob/master/tf/modules/pkgroot/pkgroot-deploy.tf along with an nginx ingress in order to support HTTPS.
 The result is https://eups.lsst.codes.
 
-hub.docker.com
---------------
+ghcr.io
+-------
 
-The primary publication location for Docker containers is DockerHub at hub.docker.com.
-Containers are published using credentials stored in the "dockerhub-sqreadmin" Jenkins secret.
+The primary publication location for Docker containers is Github at ghcr.io.
+Containers are published using credentials stored in the "rubinobs-dm" Jenkins secret.
 The same containers are published to Google Artifact Registry at GCP using credentials stored in the "google_archive_registry_sa" Jenkins secret.
 
 GitHub
@@ -214,11 +211,11 @@ Typically it would be triggered when a new build becomes available of the rubin-
 Note that the build-newinstall job builds the version of the rubin-env environment that is specified in etc/scipipe/build-matrix.yaml, not the default in newinstall itself.
 The container is pushed with a tag containing that version, as well as a "latest" tag that is typically enabled.
 
-centos
+scipipe
 ------
 
-The "centos" container contains the LSST Science Pipelines code in "minimized" form.
-The lsst-sqre/docker-tarballs Dockerfile is used to install a "stack" from binary tarballs and then to strip out debugging symbols, test code, documentation in HTML and XML form, and C++ source code.
+The "scipipe" container contains the LSST Science Pipelines code in "minimized" form.
+The lsst-dm/docker-tarballs Dockerfile is used to install a "stack" from binary tarballs and then to strip out debugging symbols, test code, documentation in HTML and XML form, and C++ source code.
 The "shebangtron" script that fixes "#!" lines in Python scripts is also executed.
 
 sciplat-lab
